@@ -24,12 +24,16 @@ export function SettingsModal() {
     toggleTheme,
     pairingStatus,
     pairingDeviceId,
-    retryConnect
+    retryConnect,
+    connectionError,
+    deviceName,
+    setDeviceName
   } = useStore()
 
   const [url, setUrl] = useState(serverUrl)
   const [mode, setMode] = useState(authMode)
   const [token, setToken] = useState(gatewayToken)
+  const [name, setName] = useState(deviceName)
   const [error, setError] = useState('')
   const [showToken, setShowToken] = useState(false)
   const [connectionExpanded, setConnectionExpanded] = useState(!connected)
@@ -42,8 +46,9 @@ export function SettingsModal() {
     setUrl(serverUrl)
     setMode(authMode)
     setToken(gatewayToken)
+    setName(deviceName)
     setConnectionExpanded(!connected)
-  }, [serverUrl, authMode, gatewayToken, showSettings, connected])
+  }, [serverUrl, authMode, gatewayToken, deviceName, showSettings, connected])
 
   // Reset connect phase when modal opens or connection succeeds
   useEffect(() => {
@@ -176,6 +181,7 @@ export function SettingsModal() {
     setServerUrl(trimmedUrl)
     setAuthMode(mode)
     setGatewayToken(trimmedToken)
+    setDeviceName(name.trim())
 
     // Clear stored device token so the fresh gateway token is used immediately
     try {
@@ -199,8 +205,9 @@ export function SettingsModal() {
       setConnectPhase('idle')
       setShowSettings(false)
       return
-    } catch {
+    } catch (err) {
       // First attempt failed — retry once
+      setError(err instanceof Error ? err.message : 'Connection failed')
     }
 
     setConnectPhase('retrying')
@@ -212,11 +219,12 @@ export function SettingsModal() {
         startAutoRetry()
         return  // Keep modal open
       }
+      setError('')
       setConnectPhase('idle')
       setShowSettings(false)
       return
-    } catch {
-      // Retry also failed
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Connection failed')
     }
 
     // Start auto-retry cycle
@@ -288,6 +296,19 @@ export function SettingsModal() {
               </div>
 
               <div className="form-group">
+                <label htmlFor="deviceName">Device Name</label>
+                <input
+                  type="text"
+                  id="deviceName"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Jake's MacBook"
+                  autoComplete="off"
+                />
+                <span className="form-hint">Optional — identifies this device in the OpenClaw devices list. Defaults to &quot;ClawControl&quot;.</span>
+              </div>
+
+              <div className="form-group">
                 <label>Authentication Mode</label>
                 <div className="auth-mode-toggle">
                   <button
@@ -347,6 +368,9 @@ export function SettingsModal() {
               </div>
 
               {error && <div className="form-error">{error}</div>}
+              {!error && !connected && connectionError && (
+                <div className="form-error">{connectionError}</div>
+              )}
             </>
           )}
 

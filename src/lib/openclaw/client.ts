@@ -51,6 +51,7 @@ export class OpenClawClient {
   private maxReconnectAttempts = 10
   private authenticated = false
   private deviceIdentity: DeviceIdentity | null = null
+  private deviceName: string | null = null
   private healthCheckTimer: ReturnType<typeof setInterval> | null = null
   private static HEALTH_CHECK_INTERVAL = 15000 // 15s
   private static HEALTH_CHECK_TIMEOUT = 10000  // 10s
@@ -70,12 +71,13 @@ export class OpenClawClient {
   // Guards against emitting duplicate streamSessionKey events per send cycle.
   private sessionKeyResolved = false
 
-  constructor(url: string, token: string = '', authMode: 'token' | 'password' = 'token', wsFactory?: WebSocketFactory, deviceIdentity?: DeviceIdentity | null) {
+  constructor(url: string, token: string = '', authMode: 'token' | 'password' = 'token', wsFactory?: WebSocketFactory, deviceIdentity?: DeviceIdentity | null, deviceName?: string) {
     this.url = url
     this.token = token
     this.authMode = authMode
     this.wsFactory = wsFactory || null
     this.deviceIdentity = deviceIdentity || null
+    this.deviceName = deviceName || null
   }
 
   // Event handling
@@ -314,7 +316,7 @@ export class OpenClawClient {
         scopes,
         client: {
           id: OPENCLAW_CLIENT_ID,
-          displayName: APP_NAME,
+          displayName: this.deviceName || APP_NAME,
           version: APP_VERSION,
           platform: getPlatform(),
           mode: OPENCLAW_CLIENT_MODE

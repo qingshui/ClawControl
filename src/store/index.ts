@@ -53,7 +53,11 @@ interface AppState {
   setGatewayToken: (token: string) => void
   connected: boolean
   connecting: boolean
+  connectionError: string | null
+  setConnectionError: (error: string | null) => void
   client: OpenClawClient | null
+  deviceName: string
+  setDeviceName: (name: string) => void
 
   // Device Identity & Pairing
   pairingStatus: 'none' | 'pending'
@@ -265,7 +269,11 @@ export const useStore = create<AppState>()(
       },
       connected: false,
       connecting: false,
+      connectionError: null,
+      setConnectionError: (error) => set({ connectionError: error }),
       client: null,
+      deviceName: '',
+      setDeviceName: (name) => set({ deviceName: name }),
 
       // Device Identity & Pairing
       pairingStatus: 'none',
@@ -1273,7 +1281,8 @@ export const useStore = create<AppState>()(
           } catch {
             // URL parsing failed, proceed without factory
           }
-          const client = new OpenClawClient(serverUrl, effectiveToken, authMode, wsFactory, deviceIdentity)
+          const { deviceName } = get()
+          const client = new OpenClawClient(serverUrl, effectiveToken, authMode, wsFactory, deviceIdentity, deviceName || undefined)
 
           // Set up event handlers
           client.on('message', (msgArg: unknown) => {
@@ -1386,7 +1395,7 @@ export const useStore = create<AppState>()(
           })
 
           client.on('connected', (payload: unknown) => {
-            set({ connected: true, connecting: false, pairingStatus: 'none', pairingDeviceId: null })
+            set({ connected: true, connecting: false, connectionError: null, pairingStatus: 'none', pairingDeviceId: null })
 
             // Extract and store device token from hello-ok response
             if (serverHost && payload && typeof payload === 'object') {
@@ -1722,7 +1731,8 @@ export const useStore = create<AppState>()(
             return get().connect()
           }
 
-          set({ connecting: false, connected: false })
+          const connectionError = err instanceof Error ? err.message : 'Connection failed'
+          set({ connecting: false, connected: false, connectionError })
           throw err
         }
       },
@@ -1899,6 +1909,7 @@ export const useStore = create<AppState>()(
         theme: state.theme,
         serverUrl: state.serverUrl,
         authMode: state.authMode,
+        deviceName: state.deviceName,
         pinnedSessionKeys: state.pinnedSessionKeys,
         sidebarCollapsed: state.sidebarCollapsed,
         collapsedSessionGroups: state.collapsedSessionGroups,
