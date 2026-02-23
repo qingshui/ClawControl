@@ -198,6 +198,21 @@ export function Sidebar() {
           <span>Server Usage</span>
         </button>
 
+        <button
+          className={`dashboard-link-btn ${mainView === 'nodes' ? 'active' : ''}`}
+          onClick={() => useStore.getState().openNodes()}
+          style={{ marginTop: '0px' }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="5" r="3" />
+            <circle cx="5" cy="19" r="3" />
+            <circle cx="19" cy="19" r="3" />
+            <line x1="12" y1="8" x2="5" y2="16" />
+            <line x1="12" y1="8" x2="19" y2="16" />
+          </svg>
+          <span>Nodes</span>
+        </button>
+
 
         <div className="sessions-section">
           <div className="sessions-section-header">

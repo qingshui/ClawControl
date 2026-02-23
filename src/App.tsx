@@ -16,6 +16,7 @@ import { ClawHubSkillDetailView } from './components/ClawHubSkillDetailView'
 import { HookDetailView } from './components/HookDetailView'
 import { ServerSettingsView } from './components/ServerSettingsView'
 import { UsageView } from './components/UsageView'
+import { NodesView } from './components/NodesView'
 import { AgentDashboard } from './components/AgentDashboard'
 import { MobileGestureLayer } from './components/MobileGestureLayer'
 import {
@@ -124,6 +125,7 @@ function App() {
         {mainView === 'hook-detail' && <HookDetailView />}
         {mainView === 'server-settings' && <ServerSettingsView />}
         {mainView === 'usage' && <UsageView />}
+        {mainView === 'nodes' && <NodesView />}
         {mainView === 'pixel-dashboard' && <AgentDashboard />}
       </main>
 

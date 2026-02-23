@@ -202,6 +202,25 @@ export interface EventFrame {
   payload?: any
 }
 
+export interface Node {
+  nodeId: string
+  displayName?: string
+  platform?: string
+  version?: string
+  coreVersion?: string
+  uiVersion?: string
+  deviceFamily?: string
+  modelIdentifier?: string
+  remoteIp?: string
+  caps: string[]
+  commands: string[]
+  pathEnv?: string
+  permissions?: Record<string, boolean>
+  connectedAtMs?: number
+  paired: boolean
+  connected: boolean
+}
+
 export type EventHandler = (...args: unknown[]) => void
 
 export type RpcCaller = <T = any>(method: string, params?: any, options?: { timeoutMs?: number }) => Promise<T>

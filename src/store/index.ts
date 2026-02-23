@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { OpenClawClient, Message, Session, Agent, Skill, CronJob, Hook, HooksConfig, AgentFile, CreateAgentParams, buildIdentityContent } from '../lib/openclaw'
+import type { Node, ExecApprovalsResponse, DevicePairListResponse } from '../lib/openclaw'
 import type { ClawHubSkill, ClawHubSort } from '../lib/clawhub'
 import { listClawHubSkills, searchClawHub, getClawHubSkill, getClawHubSkillVersion, getClawHubSkillConvex } from '../lib/clawhub'
 import * as Platform from '../lib/platform'
@@ -87,8 +88,8 @@ interface AppState {
   setRightPanelTab: (tab: 'skills' | 'crons' | 'hooks') => void
 
   // Main View State
-  mainView: 'chat' | 'skill-detail' | 'cron-detail' | 'create-cron' | 'agent-detail' | 'create-agent' | 'clawhub-skill-detail' | 'server-settings' | 'usage' | 'pixel-dashboard' | 'hook-detail'
-  setMainView: (view: 'chat' | 'skill-detail' | 'cron-detail' | 'create-cron' | 'agent-detail' | 'create-agent' | 'clawhub-skill-detail' | 'usage' | 'hook-detail') => void
+  mainView: 'chat' | 'skill-detail' | 'cron-detail' | 'create-cron' | 'agent-detail' | 'create-agent' | 'clawhub-skill-detail' | 'server-settings' | 'usage' | 'pixel-dashboard' | 'hook-detail' | 'nodes'
+  setMainView: (view: 'chat' | 'skill-detail' | 'cron-detail' | 'create-cron' | 'agent-detail' | 'create-agent' | 'clawhub-skill-detail' | 'usage' | 'hook-detail' | 'nodes') => void
   selectedSkill: Skill | null
   selectedCronJob: CronJob | null
   selectedHook: Hook | null
@@ -98,9 +99,16 @@ interface AppState {
   selectAgentForDetail: (agent: Agent) => Promise<void>
   openServerSettings: () => void
   openUsage: () => void
+  openNodes: () => void
   openCreateCron: () => void
   openDashboard: () => void
   closeDetailView: () => void
+  nodes: Node[]
+  fetchNodes: () => Promise<void>
+  execApprovals: ExecApprovalsResponse | null
+  fetchExecApprovals: () => Promise<void>
+  devicePairings: DevicePairListResponse | null
+  fetchDevicePairings: () => Promise<void>
   toggleSkillEnabled: (skillId: string, enabled: boolean) => Promise<void>
   saveAgentFile: (agentId: string, fileName: string, content: string) => Promise<boolean>
   refreshAgentFiles: (agentId: string) => Promise<void>
@@ -402,6 +410,7 @@ export const useStore = create<AppState>()(
       },
       openServerSettings: () => set({ mainView: 'server-settings', selectedSkill: null, selectedCronJob: null, selectedHook: null, selectedAgentDetail: null, selectedClawHubSkill: null }),
       openUsage: () => set({ mainView: 'usage', selectedSkill: null, selectedCronJob: null, selectedHook: null, selectedAgentDetail: null, selectedClawHubSkill: null }),
+      openNodes: () => set({ mainView: 'nodes', selectedSkill: null, selectedCronJob: null, selectedHook: null, selectedAgentDetail: null, selectedClawHubSkill: null }),
       openCreateCron: () => set({ mainView: 'create-cron', selectedSkill: null, selectedCronJob: null, selectedHook: null, selectedAgentDetail: null, selectedClawHubSkill: null }),
       openDashboard: () => set({ mainView: 'pixel-dashboard', selectedSkill: null, selectedCronJob: null, selectedHook: null, selectedAgentDetail: null, selectedClawHubSkill: null }),
       closeDetailView: () => set({ mainView: 'chat', selectedSkill: null, selectedCronJob: null, selectedHook: null, selectedAgentDetail: null, selectedClawHubSkill: null }),
@@ -1007,6 +1016,41 @@ export const useStore = create<AppState>()(
           return { success: true }
         } catch (err: any) {
           return { success: false, error: err?.message || 'Failed to delete agent' }
+        }
+      },
+
+      // Nodes
+      nodes: [],
+      fetchNodes: async () => {
+        const { client } = get()
+        if (!client) return
+        try {
+          const nodes = await client.listNodes()
+          set({ nodes })
+        } catch (err) {
+          console.warn('[store] Failed to fetch nodes:', err)
+        }
+      },
+      execApprovals: null,
+      fetchExecApprovals: async () => {
+        const { client } = get()
+        if (!client) return
+        try {
+          const execApprovals = await client.getExecApprovals()
+          set({ execApprovals })
+        } catch (err) {
+          console.warn('[store] Failed to fetch exec approvals:', err)
+        }
+      },
+      devicePairings: null,
+      fetchDevicePairings: async () => {
+        const { client } = get()
+        if (!client) return
+        try {
+          const devicePairings = await client.listDevicePairings()
+          set({ devicePairings })
+        } catch (err) {
+          console.warn('[store] Failed to fetch device pairings:', err)
         }
       },
 
