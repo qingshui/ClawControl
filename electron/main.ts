@@ -1,7 +1,24 @@
-import { app, BrowserWindow, ipcMain, shell, Menu, safeStorage, Notification } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu, safeStorage, Notification, protocol, net } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs'
 import crypto from 'crypto'
+import { pathToFileURL } from 'url'
+
+// On Windows production builds, serve via a custom protocol scheme to avoid file:// origin issues
+const useCustomProtocol = process.platform === 'win32' && !process.env.VITE_DEV_SERVER_URL
+
+if (useCustomProtocol) {
+  protocol.registerSchemesAsPrivileged([{
+    scheme: 'app',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true
+    }
+  }])
+}
 
 let mainWindow: BrowserWindow | null = null
 const trustedHosts = new Set<string>()
@@ -99,7 +116,7 @@ function createWindow() {
     // Allow navigation to the dev server or the app itself
     const appOrigin = process.env.VITE_DEV_SERVER_URL
       ? new URL(process.env.VITE_DEV_SERVER_URL).origin
-      : 'file://'
+      : useCustomProtocol ? 'app://localhost' : 'file://'
     if (!url.startsWith(appOrigin)) {
       event.preventDefault()
       try {
@@ -117,6 +134,8 @@ function createWindow() {
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
     mainWindow.webContents.openDevTools()
+  } else if (useCustomProtocol) {
+    mainWindow.loadURL('app://localhost/')
   } else {
     mainWindow.loadFile(join(__dirname, '../dist/index.html'))
   }
@@ -151,6 +170,18 @@ app.whenReady().then(() => {
   // Set custom dock icon for macOS
   if (process.platform === 'darwin') {
     app.dock.setIcon(join(__dirname, '../build/icon.png'))
+  }
+
+  // Register custom protocol handler for Windows production builds
+  if (useCustomProtocol) {
+    const distPath = join(__dirname, '../dist')
+    protocol.handle('app', (request) => {
+      const url = new URL(request.url)
+      let filePath = decodeURIComponent(url.pathname)
+      if (filePath === '/' || filePath === '') filePath = '/index.html'
+      const fullPath = join(distPath, filePath)
+      return net.fetch(pathToFileURL(fullPath).toString())
+    })
   }
 
   loadTrustedHosts()
@@ -292,7 +323,7 @@ ipcMain.handle('subagent:openPopout', async (_event, params: {
   popout.webContents.on('will-navigate', (event, url) => {
     const appOrigin = process.env.VITE_DEV_SERVER_URL
       ? new URL(process.env.VITE_DEV_SERVER_URL).origin
-      : 'file://'
+      : useCustomProtocol ? 'app://localhost' : 'file://'
     if (!url.startsWith(appOrigin)) {
       event.preventDefault()
       if (url.startsWith('http:') || url.startsWith('https:')) {
@@ -303,6 +334,8 @@ ipcMain.handle('subagent:openPopout', async (_event, params: {
 
   if (process.env.VITE_DEV_SERVER_URL) {
     popout.loadURL(`${process.env.VITE_DEV_SERVER_URL}${hash}`)
+  } else if (useCustomProtocol) {
+    popout.loadURL(`app://localhost/${hash}`)
   } else {
     popout.loadFile(join(__dirname, '../dist/index.html'), { hash: hash.slice(1) })
   }
@@ -342,6 +375,8 @@ ipcMain.handle('toolcall:openPopout', async (_event, params: {
 
   if (process.env.VITE_DEV_SERVER_URL) {
     popout.loadURL(`${process.env.VITE_DEV_SERVER_URL}${hash}`)
+  } else if (useCustomProtocol) {
+    popout.loadURL(`app://localhost/${hash}`)
   } else {
     popout.loadFile(join(__dirname, '../dist/index.html'), { hash: hash.slice(1) })
   }
