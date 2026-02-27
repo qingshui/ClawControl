@@ -538,7 +538,10 @@ function SessionItem({
             </span>
           )}
           <div className="session-title">
-            {resolvedAgentName || session.title}
+            <span className="session-title-text">{resolvedAgentName || session.title}</span>
+            {unreadCount > 0 && (
+              <span className="session-badge">{unreadCount}</span>
+            )}
           </div>
           {isMainSession && (
             <span className="session-main-badge">MAIN</span>
@@ -555,9 +558,6 @@ function SessionItem({
           {formatDistanceToNow(new Date(session.updatedAt), { addSuffix: true })}
         </div>
       </div>
-      {unreadCount > 0 && (
-        <span className="session-badge">{unreadCount}</span>
-      )}
       {!/^agent:[^:]+:cron(:|$)/.test(sessionKey) && (
         <>
           <button

@@ -29,7 +29,13 @@ export function SettingsModal() {
     retryConnect,
     connectionError,
     deviceName,
-    setDeviceName
+    setDeviceName,
+    serverProfiles,
+    activeProfileId,
+    addServerProfile,
+    updateServerProfile,
+    deleteServerProfile,
+    switchProfile
   } = useStore()
 
   const [url, setUrl] = useState(serverUrl)
@@ -39,6 +45,8 @@ export function SettingsModal() {
   const [error, setError] = useState('')
   const [showToken, setShowToken] = useState(false)
   const [connectionExpanded, setConnectionExpanded] = useState(!connected)
+  const [editingProfileName, setEditingProfileName] = useState<string | null>(null)
+  const [profileNameDraft, setProfileNameDraft] = useState('')
   const [connectPhase, setConnectPhase] = useState<'idle' | 'connecting' | 'retrying' | 'failed'>('idle')
   const [autoRetryCount, setAutoRetryCount] = useState(0)
   const [autoRetryTimer, setAutoRetryTimer] = useState<ReturnType<typeof setInterval> | null>(null)
@@ -179,7 +187,18 @@ export function SettingsModal() {
       return
     }
 
-    // Save settings
+    // If no profiles exist yet, create one
+    if (serverProfiles.length === 0) {
+      const id = addServerProfile({
+        name: 'Server 1',
+        serverUrl: trimmedUrl,
+        authMode: mode,
+        deviceName: name.trim()
+      })
+      await switchProfile(id)
+    }
+
+    // Save settings (these also update the active profile)
     setServerUrl(trimmedUrl)
     setAuthMode(mode)
     setGatewayToken(trimmedToken)
@@ -301,6 +320,111 @@ export function SettingsModal() {
 
           {connectionExpanded && (
             <>
+              {serverProfiles.length > 0 && (
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label style={{ marginBottom: '8px', display: 'block' }}>Server Profiles</label>
+                  <div className="server-profile-list">
+                    {serverProfiles.map(profile => (
+                      <div
+                        key={profile.id}
+                        className={`server-profile-item ${profile.id === activeProfileId ? 'active' : ''}`}
+                        onClick={async () => {
+                          if (profile.id !== activeProfileId) {
+                            await switchProfile(profile.id)
+                            // Sync local form state with the newly selected profile
+                            setUrl(profile.serverUrl)
+                            setMode(profile.authMode)
+                            setName(profile.deviceName)
+                            setToken('')
+                            // Token will be loaded async by switchProfile
+                            const { gatewayToken: newToken } = useStore.getState()
+                            setToken(newToken)
+                          }
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                          <span className={`status-indicator ${profile.id === activeProfileId && connected ? 'connected' : 'disconnected'}`} />
+                          {editingProfileName === profile.id ? (
+                            <input
+                              className="profile-name-input"
+                              value={profileNameDraft}
+                              onChange={(e) => setProfileNameDraft(e.target.value)}
+                              onBlur={() => {
+                                const trimmed = profileNameDraft.trim()
+                                if (trimmed) updateServerProfile(profile.id, { name: trimmed })
+                                setEditingProfileName(null)
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const trimmed = profileNameDraft.trim()
+                                  if (trimmed) updateServerProfile(profile.id, { name: trimmed })
+                                  setEditingProfileName(null)
+                                } else if (e.key === 'Escape') {
+                                  setEditingProfileName(null)
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              autoFocus
+                            />
+                          ) : (
+                            <span
+                              style={{ fontWeight: profile.id === activeProfileId ? 600 : 400, cursor: 'text', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                              onDoubleClick={(e) => {
+                                e.stopPropagation()
+                                setEditingProfileName(profile.id)
+                                setProfileNameDraft(profile.name)
+                              }}
+                              title="Double-click to rename"
+                            >
+                              {profile.name}
+                            </span>
+                          )}
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {profile.serverUrl}
+                          </span>
+                        </div>
+                        {serverProfiles.length > 1 && (
+                          <button
+                            className="profile-delete-btn"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (confirm(`Delete profile "${profile.name}"?`)) {
+                                deleteServerProfile(profile.id)
+                              }
+                            }}
+                            title="Delete profile"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                              <path d="M18 6L6 18M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ marginTop: '8px', fontSize: '13px', padding: '6px 12px' }}
+                    onClick={() => {
+                      const newName = `Server ${serverProfiles.length + 1}`
+                      const id = addServerProfile({
+                        name: newName,
+                        serverUrl: '',
+                        authMode: 'token',
+                        deviceName: ''
+                      })
+                      switchProfile(id)
+                      setUrl('')
+                      setMode('token')
+                      setToken('')
+                      setName('')
+                    }}
+                  >
+                    + Add Server
+                  </button>
+                </div>
+              )}
+
               <div className="form-group">
                 <label htmlFor="serverUrl">Server URL</label>
                 <input

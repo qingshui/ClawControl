@@ -13,7 +13,9 @@ export function TopBar() {
     agents,
     currentSessionId,
     connected,
-    setShowSettings
+    setShowSettings,
+    serverProfiles,
+    getActiveProfile
   } = useStore()
 
   const currentSession = sessions.find((s) => (s.key || s.id) === currentSessionId)
@@ -64,7 +66,11 @@ export function TopBar() {
 
       <div className="connection-status">
         <span className={`status-dot ${connected ? 'connected' : 'disconnected'}`} />
-        <span className="status-text">{connected ? 'Connected' : 'Disconnected'}</span>
+        <span className="status-text">
+          {connected
+            ? (serverProfiles.length > 1 ? getActiveProfile()?.name || 'Connected' : 'Connected')
+            : 'Disconnected'}
+        </span>
       </div>
 
       <div className="top-bar-actions">

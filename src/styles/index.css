@@ -495,12 +495,22 @@ a {
 }
 
 .session-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 500;
   font-size: 0.875rem;
   color: var(--text-primary);
-  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.session-title-text {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .session-preview {
@@ -520,6 +530,9 @@ a {
 }
 
 .session-delete {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
   opacity: 0;
   width: 24px;
   height: 24px;
@@ -529,6 +542,7 @@ a {
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   transition: all var(--transition-fast);
+  z-index: 1;
 }
 
 .session-item:hover .session-delete {
@@ -546,6 +560,9 @@ a {
 }
 
 .session-pin {
+  position: absolute;
+  top: var(--space-sm);
+  right: calc(var(--space-sm) + 28px);
   opacity: 0;
   width: 24px;
   height: 24px;
@@ -555,7 +572,6 @@ a {
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   transition: all var(--transition-fast);
-  margin-left: 4px;
 }
 
 .session-item:hover .session-pin {
@@ -588,10 +604,9 @@ a {
   font-size: 0.625rem;
   font-weight: 700;
   border-radius: 9px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: auto;
   flex-shrink: 0;
 }
 
@@ -769,6 +784,9 @@ a {
 }
 
 .session-main-badge {
+  position: absolute;
+  top: var(--space-sm);
+  right: calc(var(--space-sm) + 56px);
   font-size: 0.55rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -780,6 +798,7 @@ a {
   line-height: 1.5;
   flex-shrink: 0;
   text-transform: uppercase;
+  z-index: 1;
 }
 
 /* Session ID line (parsed from agent:name:uuid keys) */
@@ -1001,6 +1020,141 @@ a {
   flex-direction: column;
   min-width: 0;
   background: var(--bg-primary);
+}
+
+/* Server Profile Tabs */
+.server-profile-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px 0;
+  padding-top: calc(4px + var(--titlebar-offset));
+  background: var(--bg-elevated);
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+}
+
+.server-profile-tabs + .top-bar {
+  padding-top: 0;
+  height: var(--top-bar-height);
+}
+
+.profile-tab {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.profile-tab.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.profile-tab.add-tab {
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.profile-tab.add-tab:hover {
+  opacity: 1;
+}
+
+.profile-tab:hover:not(.active) {
+  background: var(--bg-hover);
+}
+
+.profile-tab-name {
+  cursor: pointer;
+}
+
+.profile-tab-rename {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+  width: 100px;
+  outline: none;
+}
+
+/* Server Profile List in Settings */
+.server-profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.server-profile-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.server-profile-item:hover {
+  background: var(--bg-hover);
+}
+
+.server-profile-item.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.profile-name-input {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  width: 100px;
+  outline: none;
+}
+
+.profile-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.server-profile-item:hover .profile-delete-btn {
+  opacity: 1;
+}
+
+.profile-delete-btn:hover {
+  color: var(--danger, #ef4444);
+  background: color-mix(in srgb, var(--danger, #ef4444) 10%, transparent);
 }
 
 /* Top Bar */
@@ -4700,6 +4854,16 @@ a {
    whichever source provides the correct value. */
 
 /* On native mobile, apply safe area insets to the actual edge elements */
+body.capacitor-mobile .server-profile-tabs {
+  padding-top: calc(4px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  -webkit-app-region: unset;
+}
+
+body.capacitor-mobile .server-profile-tabs + .top-bar {
+  height: var(--top-bar-height);
+  padding-top: 0;
+}
+
 body.capacitor-mobile .top-bar {
   height: calc(var(--top-bar-height) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));

@@ -60,7 +60,17 @@ export async function getToken(): Promise<string> {
   const platform = getPlatform()
 
   if (platform === 'electron' && (window as any).electronAPI?.getToken) {
-    return await (window as any).electronAPI.getToken()
+    const raw = await (window as any).electronAPI.getToken()
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        // New profile-scoped format — no legacy single token
+        if (parsed.__profiles) return ''
+      } catch {
+        // Not JSON — plain legacy token
+      }
+    }
+    return raw || ''
   }
 
   if (isNativeMobile()) {
@@ -77,6 +87,94 @@ export async function clearToken(): Promise<void> {
     return
   }
   localStorage.removeItem(TOKEN_KEY)
+}
+
+// Per-profile token storage
+const PROFILE_TOKEN_PREFIX = 'clawcontrol-token-'
+
+export async function saveProfileToken(profileId: string, token: string): Promise<void> {
+  const key = PROFILE_TOKEN_PREFIX + profileId
+  const platform = getPlatform()
+
+  if (platform === 'electron' && (window as any).electronAPI?.saveToken) {
+    // Store as a JSON map in the keychain for Electron
+    const existing = await getProfileTokenMap()
+    existing[profileId] = token
+    await (window as any).electronAPI.saveToken(JSON.stringify({ __profiles: existing }))
+    return
+  }
+
+  if (isNativeMobile()) {
+    await Preferences.set({ key, value: token })
+    return
+  }
+
+  localStorage.setItem(key, token)
+}
+
+export async function getProfileToken(profileId: string): Promise<string> {
+  const key = PROFILE_TOKEN_PREFIX + profileId
+  const platform = getPlatform()
+
+  if (platform === 'electron' && (window as any).electronAPI?.getToken) {
+    const raw = await (window as any).electronAPI.getToken()
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed.__profiles && parsed.__profiles[profileId]) {
+          return parsed.__profiles[profileId]
+        }
+      } catch {
+        // Not JSON — legacy single token, return it for migration
+        return raw
+      }
+    }
+    return ''
+  }
+
+  if (isNativeMobile()) {
+    const result = await Preferences.get({ key })
+    return result.value || ''
+  }
+
+  return localStorage.getItem(key) || ''
+}
+
+export async function clearProfileToken(profileId: string): Promise<void> {
+  const key = PROFILE_TOKEN_PREFIX + profileId
+  const platform = getPlatform()
+
+  if (platform === 'electron' && (window as any).electronAPI?.getToken) {
+    const existing = await getProfileTokenMap()
+    delete existing[profileId]
+    if (Object.keys(existing).length > 0) {
+      await (window as any).electronAPI.saveToken(JSON.stringify({ __profiles: existing }))
+    } else {
+      // Clear the keychain entry entirely
+      try {
+        await (window as any).electronAPI.saveToken('')
+      } catch { /* ignore */ }
+    }
+    return
+  }
+
+  if (isNativeMobile()) {
+    await Preferences.remove({ key })
+    return
+  }
+
+  localStorage.removeItem(key)
+}
+
+async function getProfileTokenMap(): Promise<Record<string, string>> {
+  try {
+    const raw = await (window as any).electronAPI.getToken()
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed.__profiles) return parsed.__profiles
+    }
+  } catch { /* ignore */ }
+  return {}
 }
 
 // External link handling

@@ -15,6 +15,7 @@ import { CreateAgentView } from './components/CreateAgentView'
 import { ClawHubSkillDetailView } from './components/ClawHubSkillDetailView'
 import { HookDetailView } from './components/HookDetailView'
 import { ServerSettingsView } from './components/ServerSettingsView'
+import { ServerProfileTabs } from './components/ServerProfileTabs'
 import { UsageView } from './components/UsageView'
 import { NodesView } from './components/NodesView'
 import { AgentDashboard } from './components/AgentDashboard'
@@ -123,6 +124,7 @@ function App() {
       <Sidebar />
 
       <main className="main-content">
+        <ServerProfileTabs />
         <TopBar />
         {mainView === 'chat' && (
           <>
