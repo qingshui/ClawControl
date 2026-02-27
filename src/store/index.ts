@@ -286,6 +286,9 @@ let _baselineSessionKeys: Set<string> | null = null
 // Monotonic counter for detecting stale async message loads after session switches.
 let _sessionLoadVersion = 0
 
+// Monotonic counter for detecting stale async connect() completions after profile switches.
+let _connectGeneration = 0
+
 // Per-session message cache so switching back to a session shows messages instantly
 // while the async refresh loads fresh data from the server.
 const _sessionMessagesCache = new Map<string, Message[]>()
@@ -351,26 +354,33 @@ let disconnectGraceTimer: ReturnType<typeof setTimeout> | null = null
 /**
  * Response watchdog: detects when a message was sent but no streaming events
  * arrive, indicating a stale connection. Force-reconnects and retries.
+ * Per-session to avoid concurrent send races overwriting each other.
  */
 const RESPONSE_WATCHDOG_MS = 20_000
-let responseWatchdogTimer: ReturnType<typeof setTimeout> | null = null
-/** The message content that is pending a streaming response. */
-let responseWatchdogPayload: {
+
+interface WatchdogEntry {
+  timer: ReturnType<typeof setTimeout>
   content: string
   attachments: Array<{ type?: string; mimeType?: string; fileName?: string; content: string; previewUrl?: string }>
   sessionId: string
-} | null = null
-/** Prevents infinite retry loops — only retry once per send. */
-let responseWatchdogRetried = false
+  retried: boolean
+}
+const responseWatchdogs = new Map<string, WatchdogEntry>()
 
-function clearResponseWatchdog(): void {
-  if (responseWatchdogTimer) {
-    clearTimeout(responseWatchdogTimer)
-    responseWatchdogTimer = null
+function clearResponseWatchdog(sessionId?: string): void {
+  if (sessionId) {
+    const entry = responseWatchdogs.get(sessionId)
+    if (entry) {
+      clearTimeout(entry.timer)
+      responseWatchdogs.delete(sessionId)
+    }
+  } else {
+    // Clear all watchdogs (e.g. on disconnect)
+    for (const [, entry] of responseWatchdogs) {
+      clearTimeout(entry.timer)
+    }
+    responseWatchdogs.clear()
   }
-  responseWatchdogPayload = null
-  // Note: responseWatchdogRetried is intentionally NOT reset here —
-  // it's reset only when a new (non-retry) send starts.
 }
 
 
@@ -1628,6 +1638,7 @@ export const useStore = create<AppState>()(
           try { stale.disconnect() } catch { /* already closed */ }
         }
 
+        const thisGeneration = ++_connectGeneration
         set({ connecting: true, pairingStatus: 'none', pairingDeviceId: null })
 
         // Hoisted so catch block can access for device token retry logic
@@ -1812,8 +1823,18 @@ export const useStore = create<AppState>()(
             if (pending.length > 0) {
               set({ pendingMessages: [] })
               for (const pm of pending) {
-                // Re-send each queued message (fire-and-forget; errors show in chat)
-                get().sendMessage(pm.content, pm.attachments).catch(() => { })
+                // Re-send using the stored session/agent from when the message was queued,
+                // not the current UI state (user may have switched sessions during disconnect).
+                const replayClient = get().client
+                if (replayClient) {
+                  replayClient.sendMessage({
+                    sessionId: pm.sessionId,
+                    content: pm.content.trim(),
+                    agentId: pm.agentId || undefined,
+                    thinking: pm.thinking,
+                    attachments: pm.attachments.map(({ previewUrl: _, ...a }: any) => a)
+                  }).catch(() => { })
+                }
               }
             }
           })
@@ -1833,8 +1854,8 @@ export const useStore = create<AppState>()(
           })
 
           client.on('disconnected', () => {
-            // Clean up timers — connection is down
-            clearResponseWatchdog()
+            // Clean up all watchdog timers — connection is down
+            clearResponseWatchdog()  // clears all
             // Don't immediately mark as disconnected — use a grace period so
             // transient mobile drops (1-5s) don't flash the UI or disable input.
             if (disconnectGraceTimer) clearTimeout(disconnectGraceTimer)
@@ -1855,8 +1876,8 @@ export const useStore = create<AppState>()(
             const { sessionKey } = (payload || {}) as { sessionKey?: string }
             const { currentSessionId } = get()
             const resolvedKey = sessionKey || currentSessionId
-            // Server started streaming — cancel the response watchdog
-            clearResponseWatchdog()
+            // Server started streaming — cancel the response watchdog for this session
+            if (resolvedKey) clearResponseWatchdog(resolvedKey)
             if (resolvedKey) {
               set((state) => ({
                 streamingSessions: { ...state.streamingSessions, [resolvedKey]: true },
@@ -1869,8 +1890,7 @@ export const useStore = create<AppState>()(
           })
 
           client.on('streamChunk', (chunkArg: unknown) => {
-            // Any streaming chunk means the connection is alive — cancel watchdog
-            if (responseWatchdogTimer) clearResponseWatchdog()
+            // Any streaming chunk means the connection is alive — cancel watchdog for this session
 
             const chunk = (chunkArg && typeof chunkArg === 'object')
               ? chunkArg as { text?: string; sessionKey?: string }
@@ -1882,6 +1902,7 @@ export const useStore = create<AppState>()(
 
             const { currentSessionId, streamingDisabled } = get()
             const resolvedKey = sessionKey || currentSessionId
+            if (resolvedKey) clearResponseWatchdog(resolvedKey)
             const isCurrentSession = !sessionKey || !currentSessionId || sessionKey === currentSessionId
 
             // For non-current sessions, just track that chunks arrived
@@ -2066,10 +2087,22 @@ export const useStore = create<AppState>()(
                 return acc
               }, [])
 
-              // Migrate per-session streaming state from old key to new key
+              // Migrate ALL per-session keyed state from old key to new key
               const { [oldKey]: wasStreaming, ...restStreaming } = state.streamingSessions
               const { [oldKey]: hadChunks, ...restChunks } = state.sessionHadChunks
               const { [oldKey]: toolCalls, ...restToolCalls } = state.sessionToolCalls
+              const { [oldKey]: thinkingText, ...restThinking } = state.streamingThinking
+              const { [oldKey]: unreadCount, ...restUnread } = state.unreadCounts
+
+              // Migrate pinned session keys
+              const pinnedSessionKeys = state.pinnedSessionKeys.map(k => k === oldKey ? sessionKey : k)
+
+              // Migrate session messages cache
+              const cachedMessages = _sessionMessagesCache.get(oldKey)
+              if (cachedMessages) {
+                _sessionMessagesCache.delete(oldKey)
+                _sessionMessagesCache.set(sessionKey, cachedMessages)
+              }
 
               return {
                 currentSessionId: state.currentSessionId === oldKey ? sessionKey : state.currentSessionId,
@@ -2078,6 +2111,9 @@ export const useStore = create<AppState>()(
                 streamingSessions: wasStreaming !== undefined ? { ...restStreaming, [sessionKey]: wasStreaming } : state.streamingSessions,
                 sessionHadChunks: hadChunks !== undefined ? { ...restChunks, [sessionKey]: hadChunks } : state.sessionHadChunks,
                 sessionToolCalls: toolCalls !== undefined ? { ...restToolCalls, [sessionKey]: toolCalls } : state.sessionToolCalls,
+                streamingThinking: thinkingText !== undefined ? { ...restThinking, [sessionKey]: thinkingText } : state.streamingThinking,
+                unreadCounts: unreadCount !== undefined ? { ...restUnread, [sessionKey]: unreadCount } : state.unreadCounts,
+                pinnedSessionKeys,
               }
             })
           })
@@ -2196,7 +2232,15 @@ export const useStore = create<AppState>()(
           })
 
           await client.connect()
-            ; (globalThis as any).__clawdeskClient = client
+
+          // Guard: if a newer connect() was started (e.g. rapid profile switch),
+          // discard this stale connection to prevent wrong server's data appearing.
+          if (_connectGeneration !== thisGeneration) {
+            client.disconnect()
+            return
+          }
+
+          ; (globalThis as any).__clawdeskClient = client
           set({ client })
 
           // Fetch initial data
@@ -2340,50 +2384,56 @@ export const useStore = create<AppState>()(
 
           // Start response watchdog: if no streaming event arrives within the
           // timeout, the connection is stale. Force-reconnect and retry once.
-          if (responseWatchdogRetried) {
-            // This is the retried send — don't set up another watchdog
-            responseWatchdogRetried = false
-          } else {
-            clearResponseWatchdog()
-            responseWatchdogPayload = { content, attachments, sessionId: sessionId! }
-            responseWatchdogTimer = setTimeout(async () => {
-              const payload = responseWatchdogPayload
-              if (!payload) return
-              const { client: currentClient } = get()
+          {
+            const existingWatchdog = responseWatchdogs.get(sessionId!)
+            const alreadyRetried = existingWatchdog?.retried ?? false
+            clearResponseWatchdog(sessionId!)
 
-              // Check if the connection is still alive via server tick timestamps
-              // (lightweight — no RPC call needed). If alive, the server may just
-              // be slow; don't reconnect, just warn.
-              if (currentClient?.isAlive()) {
-                console.warn('[response-watchdog] No streaming response, but connection is alive (ticks OK) — not reconnecting')
-                clearResponseWatchdog()
-                return
-              }
+            if (alreadyRetried) {
+              // This is the retried send — don't set up another watchdog
+            } else {
+              const watchdogSessionId = sessionId!
+              const timer = setTimeout(async () => {
+                const entry = responseWatchdogs.get(watchdogSessionId)
+                if (!entry) return
+                const { client: currentClient } = get()
 
-              console.warn('[response-watchdog] No streaming response and connection is stale — reconnecting')
-              responseWatchdogRetried = true
-              // Clear streaming state for the stale session
-              set((state) => ({
-                streamingSessions: { ...state.streamingSessions, [payload.sessionId]: false },
-                streamingSessionId: null
-              }))
-              clearResponseWatchdog()
-              // Force reconnect, then re-send the message
-              try {
-                await get().connect()
-                console.log('[response-watchdog] Reconnected, retrying message')
-                get().sendMessage(payload.content, payload.attachments).catch(() => {})
-              } catch {
+                // Check if the connection is still alive via server tick timestamps
+                if (currentClient?.isAlive()) {
+                  console.warn('[response-watchdog] No streaming response, but connection is alive (ticks OK) — not reconnecting')
+                  clearResponseWatchdog(watchdogSessionId)
+                  return
+                }
+
+                console.warn('[response-watchdog] No streaming response and connection is stale — reconnecting')
+                const retryContent = entry.content
+                const retryAttachments = entry.attachments
+                // Mark as retried so the re-send doesn't create another watchdog
+                responseWatchdogs.set(watchdogSessionId, { ...entry, retried: true })
+                // Clear streaming state for the stale session
                 set((state) => ({
-                  messages: [...state.messages, {
-                    id: `error-${Date.now()}`,
-                    role: 'system' as const,
-                    content: 'Message may not have been delivered — connection was stale. Please try again.',
-                    timestamp: new Date().toISOString()
-                  }]
+                  streamingSessions: { ...state.streamingSessions, [watchdogSessionId]: false },
+                  streamingSessionId: state.streamingSessionId === watchdogSessionId ? null : state.streamingSessionId
                 }))
-              }
-            }, RESPONSE_WATCHDOG_MS)
+                clearResponseWatchdog(watchdogSessionId)
+                // Force reconnect, then re-send the message
+                try {
+                  await get().connect()
+                  console.log('[response-watchdog] Reconnected, retrying message')
+                  get().sendMessage(retryContent, retryAttachments).catch(() => {})
+                } catch {
+                  set((state) => ({
+                    messages: [...state.messages, {
+                      id: `error-${Date.now()}`,
+                      role: 'system' as const,
+                      content: 'Message may not have been delivered — connection was stale. Please try again.',
+                      timestamp: new Date().toISOString()
+                    }]
+                  }))
+                }
+              }, RESPONSE_WATCHDOG_MS)
+              responseWatchdogs.set(watchdogSessionId, { timer, content, attachments, sessionId: watchdogSessionId, retried: false })
+            }
           }
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : 'Unknown error'
@@ -2550,7 +2600,7 @@ export const selectIsCompacting = (state: AppState) => state.compactingSession =
 // Without this, old module versions keep processing events, causing duplicate streams.
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    clearResponseWatchdog()
+    clearResponseWatchdog()  // clears all
     const { client } = useStore.getState()
     if (client) {
       client.disconnect()

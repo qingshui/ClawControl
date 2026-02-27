@@ -46,27 +46,33 @@ export function SubagentViewer({
     // Lock this client to only process events for our session
     client.setPrimarySessionKey(sessionKey)
 
+    let disposed = false
+
     client.on('connected', () => {
+      if (disposed) return
       setConnectionStatus('connected')
 
       // Fetch history for the session
       client.getSessionMessages(sessionKey).then((result) => {
-        setMessages(result.messages)
+        if (!disposed) setMessages(result.messages)
       }).catch(() => {})
     })
 
     client.on('disconnected', () => {
+      if (disposed) return
       setConnectionStatus('disconnected')
       setIsStreaming(false)
     })
 
     client.on('streamStart', () => {
+      if (disposed) return
       setIsStreaming(true)
       setStreamingText('')
       setToolCalls([])
     })
 
     client.on('streamChunk', (chunkArg: unknown) => {
+      if (disposed) return
       const chunk = (chunkArg && typeof chunkArg === 'object')
         ? chunkArg as { text?: string; sessionKey?: string }
         : { text: String(chunkArg) }
@@ -76,16 +82,20 @@ export function SubagentViewer({
     })
 
     client.on('streamEnd', () => {
+      if (disposed) return
       setIsStreaming(false)
       // Refresh history to get the canonical final message
       client.getSessionMessages(sessionKey).then((result) => {
-        setMessages(result.messages)
-        setStreamingText('')
-        setToolCalls([])
+        if (!disposed) {
+          setMessages(result.messages)
+          setStreamingText('')
+          setToolCalls([])
+        }
       }).catch(() => {})
     })
 
     client.on('message', (msgArg: unknown) => {
+      if (disposed) return
       const msg = msgArg as Message
       setMessages((prev) => {
         const exists = prev.some(m => m.id === msg.id)
@@ -97,6 +107,7 @@ export function SubagentViewer({
     })
 
     client.on('toolCall', (payload: unknown) => {
+      if (disposed) return
       const tc = payload as { toolCallId: string; name: string; phase: string; result?: string; args?: Record<string, unknown> }
       setToolCalls((prev) => {
         const idx = prev.findIndex(t => t.toolCallId === tc.toolCallId)
@@ -122,10 +133,11 @@ export function SubagentViewer({
     })
 
     client.connect().catch(() => {
-      setConnectionStatus('disconnected')
+      if (!disposed) setConnectionStatus('disconnected')
     })
 
     return () => {
+      disposed = true
       client.disconnect()
       clientRef.current = null
     }

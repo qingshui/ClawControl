@@ -1427,6 +1427,41 @@ a {
   flex: 1;
   overflow-y: auto;
   padding: var(--space-lg);
+  position: relative;
+}
+
+/* Scroll-to-bottom floating button */
+.scroll-to-bottom-btn {
+  position: sticky;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border-default);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.scroll-to-bottom-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.scroll-to-bottom-btn svg {
+  width: 20px;
+  height: 20px;
 }
 
 .chat-area::-webkit-scrollbar {
@@ -1445,6 +1480,52 @@ a {
 .chat-container {
   max-width: 900px;
   margin: 0 auto;
+}
+
+/* Error boundary fallback */
+.error-boundary-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: var(--space-xl);
+}
+
+.error-boundary-content {
+  text-align: center;
+  max-width: 400px;
+}
+
+.error-boundary-content svg {
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-md);
+}
+
+.error-boundary-content h3 {
+  font-size: 1.1rem;
+  margin: 0 0 var(--space-sm);
+  color: var(--text-primary);
+}
+
+.error-boundary-content p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-md);
+  word-break: break-word;
+}
+
+.error-boundary-content button {
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.error-boundary-content button:hover {
+  background: var(--bg-tertiary);
 }
 
 /* Empty Chat State */

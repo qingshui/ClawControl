@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../store'
 import { formatDistanceToNow } from 'date-fns'
 import { Agent, Session } from '../lib/openclaw'
@@ -33,7 +34,31 @@ export function Sidebar() {
     fetchSessions,
     pinnedSessionKeys,
     togglePinSession
-  } = useStore()
+  } = useStore(useShallow(state => ({
+    sidebarCollapsed: state.sidebarCollapsed,
+    setSidebarCollapsed: state.setSidebarCollapsed,
+    sidebarOpen: state.sidebarOpen,
+    setSidebarOpen: state.setSidebarOpen,
+    sessions: state.sessions,
+    currentSessionId: state.currentSessionId,
+    setCurrentSession: state.setCurrentSession,
+    createNewSession: state.createNewSession,
+    deleteSession: state.deleteSession,
+    updateSessionLabel: state.updateSessionLabel,
+    agents: state.agents,
+    currentAgentId: state.currentAgentId,
+    setCurrentAgent: state.setCurrentAgent,
+    selectAgentForDetail: state.selectAgentForDetail,
+    showCreateAgent: state.showCreateAgent,
+    openDashboard: state.openDashboard,
+    mainView: state.mainView,
+    unreadCounts: state.unreadCounts,
+    collapsedSessionGroups: state.collapsedSessionGroups,
+    toggleSessionGroup: state.toggleSessionGroup,
+    fetchSessions: state.fetchSessions,
+    pinnedSessionKeys: state.pinnedSessionKeys,
+    togglePinSession: state.togglePinSession,
+  })))
 
   const currentAgent = agents.find((a) => a.id === currentAgentId)
 

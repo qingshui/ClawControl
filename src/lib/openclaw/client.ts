@@ -71,6 +71,8 @@ export class OpenClawClient {
   private certErrorEmitted = false
   /** Bound handler for network change events (for cleanup). */
   private networkChangeHandler: (() => void) | null = null
+  /** Timer ID for pending reconnect attempt (so disconnect() can cancel it). */
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
   // Per-session stream tracking — allows concurrent agent conversations
   // without cross-contaminating stream text buffers.
@@ -182,6 +184,12 @@ export class OpenClawClient {
           this.authenticated = false
           this.stopHealthCheck()
           this.stopTickWatch()
+          // Emit synthetic streamEnd for any active streams so UI doesn't stay stuck
+          for (const [sessionKey, ss] of this.sessionStreams) {
+            if (ss.started) {
+              this.emit('streamEnd', { sessionKey })
+            }
+          }
           this.resetStreamState()
           // Reject all in-flight RPC requests so callers don't hang for 30s
           this.rejectPendingRequests('Connection lost')
@@ -241,16 +249,28 @@ export class OpenClawClient {
     const jitter = base * 0.25 * (Math.random() * 2 - 1) // ±25%
     const delay = Math.round(base + jitter)
 
-    setTimeout(() => {
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null
       this.connect().catch(() => { })
     }, delay)
   }
 
   disconnect(): void {
     this.maxReconnectAttempts = 0 // Prevent auto-reconnect
+    // Cancel any pending reconnect timer to prevent zombie reconnections
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
     this.stopHealthCheck()
     this.stopTickWatch()
     this.stopNetworkListener()
+    // Emit synthetic streamEnd for any active streams so the UI doesn't stay stuck
+    for (const [sessionKey, ss] of this.sessionStreams) {
+      if (ss.started) {
+        this.emit('streamEnd', { sessionKey })
+      }
+    }
     if (this.ws) {
       // Null out handlers BEFORE close() so the socket stops processing
       // messages immediately. ws.close() is async — without this, events

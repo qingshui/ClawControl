@@ -1,4 +1,5 @@
 import { useRef, useEffect, useMemo, useState, useCallback, Fragment, memo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useStore, selectIsStreaming, selectHadStreamChunks, selectActiveToolCalls, selectStreamingThinking, selectIsCompacting, ToolCall, SubagentInfo } from '../store'
 import type { ExecApprovalDecision } from '../lib/openclaw'
 import { Message, stripAnsi } from '../lib/openclaw'
@@ -15,7 +16,19 @@ import logoUrl from '../../build/icon.png'
 marked.setOptions({ breaks: true, gfm: true, async: false })
 
 export function ChatArea() {
-  const { messages: allMessages, agents, currentAgentId, sessions, currentSessionId, activeSubagents, openSubagentPopout, openToolCallPopout, setDraftMessage, pendingExecApprovals, resolveExecApproval } = useStore()
+  const { messages: allMessages, agents, currentAgentId, sessions, currentSessionId, activeSubagents, openSubagentPopout, openToolCallPopout, setDraftMessage, pendingExecApprovals, resolveExecApproval } = useStore(useShallow(state => ({
+    messages: state.messages,
+    agents: state.agents,
+    currentAgentId: state.currentAgentId,
+    sessions: state.sessions,
+    currentSessionId: state.currentSessionId,
+    activeSubagents: state.activeSubagents,
+    openSubagentPopout: state.openSubagentPopout,
+    openToolCallPopout: state.openToolCallPopout,
+    setDraftMessage: state.setDraftMessage,
+    pendingExecApprovals: state.pendingExecApprovals,
+    resolveExecApproval: state.resolveExecApproval,
+  })))
   const isStreaming = useStore(selectIsStreaming)
   const hadStreamChunks = useStore(selectHadStreamChunks)
   const activeToolCalls = useStore(selectActiveToolCalls)
@@ -26,9 +39,13 @@ export function ChatArea() {
     [allMessages]
   )
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
   // Track session switches so we can instant-scroll when history loads
   const prevSessionRef = useRef(currentSessionId)
   const needsInstantScroll = useRef(true)
+  // Sticky scroll: only auto-scroll if user is near bottom
+  const isAtBottom = useRef(true)
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
 
   // Resolve agent from the current session's agentId (e.g. from key "agent:jerry:...")
   // so each chat shows the correct agent name/avatar, not just the globally selected one.
@@ -67,16 +84,45 @@ export function ChatArea() {
     if (prevSessionRef.current !== currentSessionId) {
       prevSessionRef.current = currentSessionId
       needsInstantScroll.current = true
+      isAtBottom.current = true
+      setShowScrollToBottom(false)
     }
   }, [currentSessionId])
 
-  // Scroll to bottom: instant on history load, smooth for incremental updates
+  // Track scroll position to determine if user is near bottom
+  useEffect(() => {
+    const container = chatContainerRef.current
+    if (!container) return
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+      const atBottom = distanceFromBottom < 100
+      isAtBottom.current = atBottom
+      setShowScrollToBottom(!atBottom)
+    }
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Scroll to bottom: instant on history load, smooth for incremental updates.
+  // Only auto-scroll if user is near bottom (sticky scroll).
   useEffect(() => {
     if (messages.length === 0) return
-    const behavior = needsInstantScroll.current ? 'instant' : 'smooth'
-    needsInstantScroll.current = false
-    chatEndRef.current?.scrollIntoView({ behavior })
+    if (needsInstantScroll.current) {
+      needsInstantScroll.current = false
+      chatEndRef.current?.scrollIntoView({ behavior: 'instant' })
+      return
+    }
+    if (isAtBottom.current) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages, activeToolCalls, activeSubagents])
+
+  const scrollToBottom = useCallback(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    isAtBottom.current = true
+    setShowScrollToBottom(false)
+  }, [])
 
   if (messages.length === 0) {
     return (
@@ -104,7 +150,7 @@ export function ChatArea() {
   }
 
   return (
-    <div className="chat-area">
+    <div className="chat-area" ref={chatContainerRef}>
       <div className="chat-container">
         {messages.map((message, index) => {
           const isNewDay = index === 0 || !isSameDay(new Date(message.timestamp), new Date(messages[index - 1].timestamp))
@@ -205,6 +251,19 @@ export function ChatArea() {
 
         <div ref={chatEndRef} />
       </div>
+
+      {showScrollToBottom && (
+        <button
+          className="scroll-to-bottom-btn"
+          onClick={scrollToBottom}
+          aria-label="Scroll to bottom"
+          title="Scroll to bottom"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }

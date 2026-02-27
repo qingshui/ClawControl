@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useStore } from './store'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Sidebar } from './components/Sidebar'
 import { ChatArea } from './components/ChatArea'
 import { TopBar } from './components/TopBar'
@@ -32,7 +34,13 @@ import {
 import { SplashScreen } from '@capacitor/splash-screen'
 
 function App() {
-  const { theme, initializeApp, sidebarOpen, rightPanelOpen, mainView } = useStore()
+  const { theme, initializeApp, sidebarOpen, rightPanelOpen, mainView } = useStore(useShallow(state => ({
+    theme: state.theme,
+    initializeApp: state.initializeApp,
+    sidebarOpen: state.sidebarOpen,
+    rightPanelOpen: state.rightPanelOpen,
+    mainView: state.mainView,
+  })))
 
   useEffect(() => {
     initializeApp()
@@ -126,23 +134,25 @@ function App() {
       <main className="main-content">
         <ServerProfileTabs />
         <TopBar />
-        {mainView === 'chat' && (
-          <>
-            <ChatArea />
-            <InputArea />
-          </>
-        )}
-        {mainView === 'skill-detail' && <SkillDetailView />}
-        {mainView === 'cron-detail' && <CronJobDetailView />}
-        {mainView === 'create-cron' && <CreateCronJobView />}
-        {mainView === 'agent-detail' && <AgentDetailView />}
-        {mainView === 'create-agent' && <CreateAgentView />}
-        {mainView === 'clawhub-skill-detail' && <ClawHubSkillDetailView />}
-        {mainView === 'hook-detail' && <HookDetailView />}
-        {mainView === 'server-settings' && <ServerSettingsView />}
-        {mainView === 'usage' && <UsageView />}
-        {mainView === 'nodes' && <NodesView />}
-        {mainView === 'pixel-dashboard' && <AgentDashboard />}
+        <ErrorBoundary>
+          {mainView === 'chat' && (
+            <>
+              <ChatArea />
+              <InputArea />
+            </>
+          )}
+          {mainView === 'skill-detail' && <SkillDetailView />}
+          {mainView === 'cron-detail' && <CronJobDetailView />}
+          {mainView === 'create-cron' && <CreateCronJobView />}
+          {mainView === 'agent-detail' && <AgentDetailView />}
+          {mainView === 'create-agent' && <CreateAgentView />}
+          {mainView === 'clawhub-skill-detail' && <ClawHubSkillDetailView />}
+          {mainView === 'hook-detail' && <HookDetailView />}
+          {mainView === 'server-settings' && <ServerSettingsView />}
+          {mainView === 'usage' && <UsageView />}
+          {mainView === 'nodes' && <NodesView />}
+          {mainView === 'pixel-dashboard' && <AgentDashboard />}
+        </ErrorBoundary>
       </main>
 
       <RightPanel />

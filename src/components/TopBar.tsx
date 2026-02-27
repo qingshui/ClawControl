@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../store'
 
 export function TopBar() {
@@ -16,7 +17,21 @@ export function TopBar() {
     setShowSettings,
     serverProfiles,
     getActiveProfile
-  } = useStore()
+  } = useStore(useShallow(state => ({
+    setSidebarOpen: state.setSidebarOpen,
+    toggleTheme: state.toggleTheme,
+    rightPanelOpen: state.rightPanelOpen,
+    setRightPanelOpen: state.setRightPanelOpen,
+    thinkingEnabled: state.thinkingEnabled,
+    setThinkingEnabled: state.setThinkingEnabled,
+    sessions: state.sessions,
+    agents: state.agents,
+    currentSessionId: state.currentSessionId,
+    connected: state.connected,
+    setShowSettings: state.setShowSettings,
+    serverProfiles: state.serverProfiles,
+    getActiveProfile: state.getActiveProfile,
+  })))
 
   const currentSession = sessions.find((s) => (s.key || s.id) === currentSessionId)
 
