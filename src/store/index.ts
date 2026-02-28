@@ -298,7 +298,7 @@ const SESSION_CACHE_MAX = 20
 function _cacheSet(key: string, messages: Message[]) {
   // Delete first so re-insertion moves it to the end (most recent)
   _sessionMessagesCache.delete(key)
-  _cacheSet(key, messages)
+  _sessionMessagesCache.set(key, messages)
   if (_sessionMessagesCache.size > SESSION_CACHE_MAX) {
     // Map iterates in insertion order — first key is oldest
     const oldest = _sessionMessagesCache.keys().next().value

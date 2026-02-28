@@ -743,8 +743,8 @@ export class OpenClawClient {
             rawText = rawText.split('\n').filter(l => !/\bMEDIA:\s/i.test(l)).join('\n').trim()
           }
 
-          if (rawText && !isNoiseContent(rawText)) {
-            const nextText = this.mergeIncoming(ss, isHeartbeatContent(rawText) ? '\u2764\uFE0F' : rawText, 'cumulative')
+          if (rawText && !isNoiseContent(rawText) && !isHeartbeatContent(rawText)) {
+            const nextText = this.mergeIncoming(ss, rawText, 'cumulative')
             this.applyStreamText(ss, nextText, sk)
           }
           return
@@ -789,7 +789,7 @@ export class OpenClawClient {
                 audioUrl = parsed.audioUrls[0]
               }
             }
-            if ((text && !isNoiseContent(text)) || images.length > 0 || audioUrl) {
+            if ((text && !isNoiseContent(text) && !isHeartbeatContent(text)) || images.length > 0 || audioUrl) {
               const id =
                 (typeof payload.message.id === 'string' && payload.message.id) ||
                 (typeof payload.runId === 'string' && payload.runId) ||
@@ -800,7 +800,7 @@ export class OpenClawClient {
               this.emit('message', {
                 id,
                 role: payload.message.role,
-                content: isHeartbeatContent(text) ? '\u2764\uFE0F' : text,
+                content: text,
                 timestamp: new Date(tsMs).toISOString(),
                 thinking,
                 images: images.length > 0 ? images : undefined,
@@ -832,8 +832,8 @@ export class OpenClawClient {
           const canonicalText = stripSystemNotifications(
             typeof payload.data?.text === 'string' ? stripAnsi(payload.data.text) : ''
           )
-          if (canonicalText && !isNoiseContent(canonicalText)) {
-            const nextText = this.mergeIncoming(ss, isHeartbeatContent(canonicalText) ? '\u2764\uFE0F' : canonicalText, 'cumulative')
+          if (canonicalText && !isNoiseContent(canonicalText) && !isHeartbeatContent(canonicalText)) {
+            const nextText = this.mergeIncoming(ss, canonicalText, 'cumulative')
             this.applyStreamText(ss, nextText, sk)
             return
           }
@@ -841,8 +841,8 @@ export class OpenClawClient {
           const deltaText = stripSystemNotifications(
             typeof payload.data?.delta === 'string' ? stripAnsi(payload.data.delta) : ''
           )
-          if (deltaText && !isNoiseContent(deltaText)) {
-            const nextText = this.mergeIncoming(ss, isHeartbeatContent(deltaText) ? '\u2764\uFE0F' : deltaText, 'delta')
+          if (deltaText && !isNoiseContent(deltaText) && !isHeartbeatContent(deltaText)) {
+            const nextText = this.mergeIncoming(ss, deltaText, 'delta')
             this.applyStreamText(ss, nextText, sk)
           }
         } else if (payload.stream === 'tool') {
