@@ -3665,6 +3665,27 @@ a {
   color: var(--accent-cyan-dim);
 }
 
+.image-loading-placeholder {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  margin-top: var(--space-sm);
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  max-width: 240px;
+}
+
+.image-loading-placeholder svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--accent-cyan);
+}
+
 .message-images {
   display: flex;
   flex-direction: column;

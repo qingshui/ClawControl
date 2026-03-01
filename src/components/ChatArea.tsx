@@ -554,9 +554,13 @@ renderer.code = function (this: unknown, ...args: Parameters<typeof originalCode
 
 function MessageContent({ content, images, audioUrl }: { content: string; images?: Message['images']; audioUrl?: string }) {
   const ref = useRef<HTMLDivElement>(null)
+  const hasImagePlaceholder = content.includes('[__IMAGE_LOADING__]')
+  const displayContent = hasImagePlaceholder
+    ? content.replace(/\[__IMAGE_LOADING__\]/g, '').trim()
+    : content
   const html = useMemo(
-    () => DOMPurify.sanitize(marked.parse(stripAnsi(content), { async: false, renderer }) as string),
-    [content]
+    () => DOMPurify.sanitize(marked.parse(stripAnsi(displayContent), { async: false, renderer }) as string),
+    [displayContent]
   )
 
   useEffect(() => {
@@ -598,7 +602,15 @@ function MessageContent({ content, images, audioUrl }: { content: string; images
 
   return (
     <div>
-      <div className="markdown-content" ref={ref} dangerouslySetInnerHTML={{ __html: html }} />
+      {displayContent && <div className="markdown-content" ref={ref} dangerouslySetInnerHTML={{ __html: html }} />}
+      {hasImagePlaceholder && !images?.length && (
+        <div className="image-loading-placeholder">
+          <svg className="spinning" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          <span>Generating image...</span>
+        </div>
+      )}
       {images && images.length > 0 && (
         <div className="message-images">
           {images.map((img, idx) => (

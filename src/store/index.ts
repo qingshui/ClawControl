@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { OpenClawClient, Message, Session, Agent, Skill, CronJob, Hook, HooksConfig, AgentFile, CreateAgentParams, buildIdentityContent } from '../lib/openclaw'
+import { OpenClawClient, Message, Session, Agent, Skill, CronJob, Hook, HooksConfig, AgentFile, CreateAgentParams, buildIdentityContent, stripBase64FromStreaming } from '../lib/openclaw'
 import type { Node, ExecApprovalsResponse, DevicePairListResponse, ExecApprovalDecision } from '../lib/openclaw'
 import type { ClawHubSkill, ClawHubSort } from '../lib/clawhub'
 import { listClawHubSkills, searchClawHub, getClawHubSkill, getClawHubSkillVersion, getClawHubSkillConvex } from '../lib/clawhub'
@@ -1959,15 +1959,18 @@ export const useStore = create<AppState>()(
               // Only append to an active streaming placeholder — finalized messages
               // should not be extended (a new streaming message will be created instead).
               if (lastMessage && lastMessage.role === 'assistant' && lastMessage.id.startsWith('streaming-')) {
-                const updatedMessage = { ...lastMessage, content: lastMessage.content + text }
+                const rawContent = lastMessage.content + text
+                const { text: cleanContent } = stripBase64FromStreaming(rawContent)
+                const updatedMessage = { ...lastMessage, content: cleanContent }
                 messages[messages.length - 1] = updatedMessage
                 return { messages, ...perSession }
               } else {
                 // Create new assistant placeholder
+                const { text: cleanText } = stripBase64FromStreaming(text)
                 const newMessage: Message = {
                   id: `streaming-${Date.now()}`,
                   role: 'assistant',
-                  content: text,
+                  content: cleanText,
                   timestamp: new Date().toISOString()
                 }
 

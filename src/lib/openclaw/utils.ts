@@ -62,6 +62,22 @@ export function extractTextFromContent(content: unknown): string {
   return stripAnsi(text)
 }
 
+/**
+ * Check if a string looks like valid base64-encoded data (not shell commands,
+ * descriptive text, or other non-base64 content).
+ */
+function isLikelyBase64(str: string): boolean {
+  if (str.length < 20) return false
+  // Must not contain characters invalid in base64
+  // Shell refs ($, parens, spaces, angle brackets, etc.) are dead giveaways
+  if (/[$()<>{}\[\]!?;|&\\]/.test(str)) return false
+  // Must not contain spaces (base64 is continuous)
+  if (/\s/.test(str.slice(0, 200))) return false
+  // Sample first 200 chars — should be exclusively base64 alphabet
+  const sample = str.slice(0, 200)
+  return /^[A-Za-z0-9+/=]+$/.test(sample)
+}
+
 export function extractImagesFromContent(content: unknown): Array<{ url: string; mimeType?: string; alt?: string }> {
   if (!Array.isArray(content)) return []
   const images: Array<{ url: string; mimeType?: string; alt?: string }> = []
@@ -78,9 +94,16 @@ export function extractImagesFromContent(content: unknown): Array<{ url: string;
       const trimmed = raw.trim()
       if (!trimmed) return
       if (trimmed.startsWith('data:image/')) {
+        // Validate that the data URI contains actual base64 after the prefix
+        const commaIdx = trimmed.indexOf(',')
+        if (commaIdx === -1) return
+        const payload = trimmed.slice(commaIdx + 1, commaIdx + 101)
+        if (!isLikelyBase64(payload)) return
         images.push({ url: trimmed, mimeType: mime || blockMime, alt })
         return
       }
+      // Only wrap as data URI if it actually looks like base64-encoded data
+      if (!isLikelyBase64(trimmed)) return
       const dataMime = (mime || blockMime || 'image/png').trim()
       images.push({ url: `data:${dataMime};base64,${trimmed}`, mimeType: dataMime, alt })
     }
@@ -89,8 +112,14 @@ export function extractImagesFromContent(content: unknown): Array<{ url: string;
       if (typeof raw !== 'string') return
       const trimmed = raw.trim()
       if (!trimmed) return
-      if (/^https?:\/\//i.test(trimmed) || /^data:image\//i.test(trimmed)) {
+      if (/^https?:\/\//i.test(trimmed)) {
         images.push({ url: trimmed, mimeType: mime || blockMime, alt })
+      } else if (/^data:image\//i.test(trimmed)) {
+        // Validate data URI has actual base64 payload
+        const commaIdx = trimmed.indexOf(',')
+        if (commaIdx !== -1 && isLikelyBase64(trimmed.slice(commaIdx + 1))) {
+          images.push({ url: trimmed, mimeType: mime || blockMime, alt })
+        }
       }
     }
 
@@ -174,7 +203,11 @@ export function parseMediaTokens(text: string, gatewayUrl?: string): {
           images.push({ url, alt: mediaPath.split('/').pop() || 'Generated image' })
         }
       } else if (/^data:image\//i.test(mediaPath)) {
-        images.push({ url: mediaPath, alt: 'Generated image' })
+        // Validate the data URI contains actual base64 payload
+        const commaIdx = mediaPath.indexOf(',')
+        if (commaIdx !== -1 && isLikelyBase64(mediaPath.slice(commaIdx + 1))) {
+          images.push({ url: mediaPath, alt: 'Generated image' })
+        }
       } else if (/^https?:\/\//i.test(mediaPath)) {
         if (isAudio) {
           audioUrls.push(mediaPath)
@@ -199,7 +232,27 @@ export function isHeartbeatContent(text: string): boolean {
 /** Content that is agent noise — not meaningful to display. */
 export function isNoiseContent(text: string): boolean {
   const trimmed = text.trim()
-  return trimmed === 'NO_REPLY' || trimmed === 'no_reply' || isHeartbeatContent(trimmed)
+  if (trimmed === 'NO_REPLY' || trimmed === 'no_reply') return true
+  if (isHeartbeatContent(trimmed)) return true
+  // Detect agent internal state JSON — objects with keys like lastCheck, checks, notes, etc.
+  if (isAgentStateJson(trimmed)) return true
+  return false
+}
+
+/** Detect JSON blobs that are agent internal state/metadata, not user-facing content. */
+function isAgentStateJson(text: string): boolean {
+  if (!text.startsWith('{') || !text.endsWith('}')) return false
+  try {
+    const obj = JSON.parse(text)
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false
+    const keys = Object.keys(obj)
+    // Agent status/check state — contains monitoring-related keys
+    const stateKeys = ['lastCheck', 'lastFocus', 'checks', 'notes', 'lastReport', 'lastRun', 'status', 'schedule']
+    const matchCount = keys.filter(k => stateKeys.includes(k)).length
+    return matchCount >= 2
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -207,6 +260,65 @@ export function isNoiseContent(text: string): boolean {
  * These are exec status lines like "System: [timestamp] Exec completed (...)"
  * that belong in tool call cards, not in chat text.
  */
+/**
+ * Strip base64 image data from streaming text to avoid rendering raw encoded data.
+ * Replaces inline base64 content with a placeholder that the UI renders as a spinner.
+ *
+ * Key challenge: base64 data arrives incrementally during streaming, so we must
+ * detect partial sequences early — not just complete ones. We handle:
+ * - Complete markdown images: ![alt](data:image/...;base64,...)
+ * - Complete/partial data URIs: data:image/...;base64,... (truncate from prefix)
+ * - Trailing base64 runs: long sequences of [A-Za-z0-9+/=] at the end of text
+ */
+const BASE64_IMAGE_PLACEHOLDER = '\n\n[__IMAGE_LOADING__]\n\n'
+
+export function stripBase64FromStreaming(text: string): { text: string; hasImages: boolean } {
+  let hasImages = false
+
+  // 1. Replace complete markdown images: ![...](data:image/...;base64,...)
+  let result = text.replace(/!\[[^\]]*\]\(data:image\/[^)]+\)/g, () => {
+    hasImages = true
+    return BASE64_IMAGE_PLACEHOLDER
+  })
+
+  // 2. Detect data:image URI prefix — truncate everything from there.
+  //    This catches both complete and in-progress (still-streaming) base64 data.
+  const dataUriStart = result.search(/data:image\//)
+  if (dataUriStart !== -1) {
+    hasImages = true
+    result = result.slice(0, dataUriStart).trimEnd() + BASE64_IMAGE_PLACEHOLDER
+  }
+
+  // 3. Detect trailing base64 blob — a run of 100+ base64 chars at the end of text
+  //    with no whitespace or punctuation (natural language would have spaces/periods).
+  //    This catches bare base64 that hasn't been prefixed with data:image yet.
+  if (!hasImages) {
+    const trailingMatch = result.match(/[A-Za-z0-9+/=]{100,}$/)
+    if (trailingMatch) {
+      // Verify it looks like base64: high ratio of uppercase + digits + /+=
+      const sample = trailingMatch[0]
+      const b64Chars = (sample.match(/[A-Z0-9+/=]/g) || []).length
+      if (b64Chars / sample.length > 0.4) {
+        hasImages = true
+        result = result.slice(0, trailingMatch.index).trimEnd() + BASE64_IMAGE_PLACEHOLDER
+      }
+    }
+  }
+
+  // 4. Also catch mid-text base64 blobs (already fully streamed)
+  if (!hasImages) {
+    result = result.replace(/(?:^|\n)[A-Za-z0-9+/]{300,}={0,2}(?:\n|$)/g, () => {
+      hasImages = true
+      return BASE64_IMAGE_PLACEHOLDER
+    })
+  }
+
+  // Collapse multiple consecutive placeholders
+  result = result.replace(/(\[__IMAGE_LOADING__\]\s*){2,}/g, '[__IMAGE_LOADING__]')
+
+  return { text: result.trim(), hasImages }
+}
+
 export function stripSystemNotifications(text: string): string {
   return text
     .split('\n')
