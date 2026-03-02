@@ -681,7 +681,7 @@ export function InputArea() {
   }
 
   return (
-    <div className="input-area">
+    <div className="input-area" data-testid="input-area">
       {attachedImages.length > 0 && (
         <div className="image-attachments" aria-label="Attached images">
           {attachedImages.map((img) => (
@@ -735,6 +735,7 @@ export function InputArea() {
           placeholder="Type a message..."
           rows={1}
           aria-label="Message input"
+          data-testid="message-input"
           autoCorrect="on"
           autoCapitalize="sentences"
           spellCheck={true}
@@ -763,6 +764,7 @@ export function InputArea() {
         {isStreaming ? (
           <button
             className="send-btn stop-btn"
+            data-testid="stop-btn"
             onClick={abortChat}
             aria-label="Stop generation"
           >
@@ -773,6 +775,7 @@ export function InputArea() {
         ) : (
           <button
             className="send-btn"
+            data-testid="send-btn"
             onClick={handleSubmit}
             disabled={!message.trim() && attachedImages.length === 0}
             aria-label="Send message"

@@ -1131,6 +1131,7 @@ export function NodesView() {
                                 color="green"
                                 loading={deviceActionLoading === req.requestId}
                                 onClick={() => handleApproveDevice(req.requestId)}
+                                data-testid="exec-approve"
                               >
                                 Approve
                               </ActionButton>
@@ -1138,6 +1139,7 @@ export function NodesView() {
                                 color="red"
                                 loading={deviceActionLoading === req.requestId}
                                 onClick={() => handleRejectDevice(req.requestId)}
+                                data-testid="exec-deny"
                               >
                                 Reject
                               </ActionButton>
@@ -1404,12 +1406,13 @@ function SaveBar({ saving, saveResult, onSave, onDiscard }: {
   )
 }
 
-function ActionButton({ color, loading, onClick, children, small }: {
+function ActionButton({ color, loading, onClick, children, small, 'data-testid': testId }: {
   color: 'green' | 'red' | 'blue' | 'gray'
   loading: boolean
   onClick: () => void
   children: React.ReactNode
   small?: boolean
+  'data-testid'?: string
 }) {
   const colors = {
     green: { bg: 'rgba(34,197,94,0.15)', fg: '#22c55e', hover: 'rgba(34,197,94,0.25)' },
@@ -1422,6 +1425,7 @@ function ActionButton({ color, loading, onClick, children, small }: {
     <button
       onClick={onClick}
       disabled={loading}
+      data-testid={testId}
       style={{
         padding: small ? '3px 10px' : '6px 14px',
         borderRadius: small ? '6px' : '8px',

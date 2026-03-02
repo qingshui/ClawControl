@@ -76,6 +76,7 @@ export function SessionContextMenu({ x, y, isSystemSession, isPinned, onTogglePi
     >
       <div
         className="context-menu-item"
+        data-testid="ctx-rename"
         onClick={(e) => {
           e.stopPropagation()
           onRename()
@@ -91,6 +92,7 @@ export function SessionContextMenu({ x, y, isSystemSession, isPinned, onTogglePi
       {!isSystemSession && (
         <div
           className="context-menu-item"
+          data-testid="ctx-pin"
           onClick={(e) => {
             e.stopPropagation()
             onTogglePin()
@@ -108,6 +110,7 @@ export function SessionContextMenu({ x, y, isSystemSession, isPinned, onTogglePi
           <div className="context-menu-divider" />
           <div
             className="context-menu-item destructive"
+            data-testid="ctx-delete"
             onClick={(e) => {
               e.stopPropagation()
               onDelete()

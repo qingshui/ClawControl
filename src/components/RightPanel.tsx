@@ -116,6 +116,7 @@ export function RightPanel() {
   return (
     <aside
       className={`right-panel ${rightPanelOpen ? 'visible' : 'hidden'}`}
+      data-testid="right-panel"
       style={{ width: rightPanelWidth }}
     >
       <div
@@ -126,18 +127,21 @@ export function RightPanel() {
         <div className="panel-tabs">
           <button
             className={`panel-tab ${rightPanelTab === 'skills' ? 'active' : ''}`}
+            data-testid="tab-skills"
             onClick={() => setRightPanelTab('skills')}
           >
             Skills
           </button>
           <button
             className={`panel-tab ${rightPanelTab === 'crons' ? 'active' : ''}`}
+            data-testid="tab-crons"
             onClick={() => setRightPanelTab('crons')}
           >
             Cron Jobs
           </button>
           <button
             className={`panel-tab ${rightPanelTab === 'hooks' ? 'active' : ''}`}
+            data-testid="tab-hooks"
             onClick={() => setRightPanelTab('hooks')}
           >
             Hooks
@@ -316,6 +320,7 @@ function SkillItem({ skill, isSelected, onClick }: SkillItemProps) {
   return (
     <div
       className={`skill-item clickable ${isSelected ? 'selected' : ''}`}
+      data-testid={`skill-item-${skill.id}`}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -418,6 +423,7 @@ function HookItem({ hook, isSelected, onClick }: HookItemProps) {
   return (
     <div
       className={`hook-item clickable ${isSelected ? 'selected' : ''}`}
+      data-testid={`hook-item-${hook.id}`}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -484,6 +490,7 @@ function CronJobItem({ job, isSelected, onClick }: CronJobItemProps) {
   return (
     <div
       className={`cron-item clickable ${isSelected ? 'selected' : ''}`}
+      data-testid={`cron-item-${job.id}`}
       onClick={onClick}
       role="button"
       tabIndex={0}

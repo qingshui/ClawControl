@@ -99,7 +99,7 @@ export function CreateAgentView() {
 
           <h1 className="create-agent-title">Create New Agent</h1>
 
-          <form className="create-agent-form" onSubmit={handleSubmit}>
+          <form className="create-agent-form" data-testid="create-agent-form" onSubmit={handleSubmit}>
             {/* Avatar Upload */}
             <div className="create-agent-avatar-section">
               <div
@@ -138,6 +138,7 @@ export function CreateAgentView() {
               <label htmlFor="agent-name">Name <span className="required">*</span></label>
               <input
                 id="agent-name"
+                data-testid="agent-name-input"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -206,7 +207,7 @@ export function CreateAgentView() {
               <button type="button" className="btn btn-secondary" onClick={closeDetailView} disabled={creating}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" disabled={creating || !name.trim() || !workspace.trim()}>
+              <button type="submit" className="btn btn-primary" data-testid="create-agent-submit" disabled={creating || !name.trim() || !workspace.trim()}>
                 {creating ? 'Creating...' : 'Create Agent'}
               </button>
             </div>

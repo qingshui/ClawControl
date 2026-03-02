@@ -284,7 +284,7 @@ export function SettingsModal() {
 
   return (
     <div className="modal-overlay" onClick={() => setShowSettings(false)}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
+      <div className="modal" data-testid="settings-modal" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
         <div className="modal-header">
           <h2>Settings</h2>
           <button className="modal-close" onClick={() => setShowSettings(false)}>
@@ -430,6 +430,7 @@ export function SettingsModal() {
                 <input
                   type="text"
                   id="serverUrl"
+                  data-testid="settings-server-url"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="wss://your-server.local"
@@ -697,7 +698,7 @@ export function SettingsModal() {
           </button>
           {!connected && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-              <button className="btn btn-primary" onClick={handleSave} disabled={connectPhase !== 'idle'}>
+              <button className="btn btn-primary" data-testid="settings-connect-btn" onClick={handleSave} disabled={connectPhase !== 'idle'}>
                 {connectPhase === 'connecting' ? 'Connecting...'
                   : connectPhase === 'retrying' ? 'Retrying...'
                   : connectPhase === 'failed' ? 'Failed...'

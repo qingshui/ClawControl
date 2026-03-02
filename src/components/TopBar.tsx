@@ -60,7 +60,7 @@ export function TopBar() {
   }, [currentSession, agents])
 
   return (
-    <header className="top-bar">
+    <header className="top-bar" data-testid="top-bar">
       <button
         className="menu-btn"
         onClick={() => setSidebarOpen(true)}
@@ -71,7 +71,7 @@ export function TopBar() {
         </svg>
       </button>
 
-      <div className="session-name">
+      <div className="session-name" data-testid="session-name">
         <span>{sessionName}</span>
         <button className="edit-btn" aria-label="Edit session name">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

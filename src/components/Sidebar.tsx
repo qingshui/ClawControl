@@ -183,7 +183,7 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${sidebarOpen ? 'visible' : ''}`}>
+      <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${sidebarOpen ? 'visible' : ''}`} data-testid="sidebar">
         <div className="sidebar-header">
           <div
             className="logo"
@@ -204,7 +204,7 @@ export function Sidebar() {
           </button>
         </div>
 
-        <button className="new-chat-btn" onClick={() => {
+        <button className="new-chat-btn" data-testid="new-chat-btn" onClick={() => {
           createNewSession();
           setTimeout(() => {
             const input = document.querySelector('.input-area textarea') as HTMLTextAreaElement;
@@ -219,6 +219,7 @@ export function Sidebar() {
 
         <button
           className={`dashboard-link-btn ${mainView === 'pixel-dashboard' ? 'active' : ''}`}
+          data-testid="dashboard-btn"
           onClick={openDashboard}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -232,6 +233,7 @@ export function Sidebar() {
 
         <button
           className={`dashboard-link-btn ${mainView === 'usage' ? 'active' : ''}`}
+          data-testid="usage-btn"
           onClick={() => useStore.getState().openUsage()}
           style={{ marginTop: '0px' }}
         >
@@ -243,6 +245,7 @@ export function Sidebar() {
 
         <button
           className={`dashboard-link-btn ${mainView === 'nodes' ? 'active' : ''}`}
+          data-testid="nodes-btn"
           onClick={() => useStore.getState().openNodes()}
           style={{ marginTop: '0px' }}
         >
@@ -286,6 +289,7 @@ export function Sidebar() {
               placeholder="Search sessions..."
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
+              data-testid="session-search"
             />
             {searchQuery && (
               <button
@@ -540,6 +544,7 @@ const SessionItem = memo(function SessionItem({
   return (
     <div
       className={`session-item ${isActive ? 'active' : ''}`}
+      data-testid={`session-item-${sessionKey}`}
       onClick={() => onSelect(sessionKey)}
       onContextMenu={isNativeMobile() ? undefined : (e) => onContextMenu(e, sessionKey, session.title)}
       {...longPressHandlers}

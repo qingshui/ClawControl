@@ -364,6 +364,7 @@ export function CronJobDetailView() {
         <div className="detail-actions">
           <button
             className="btn btn-secondary"
+            data-testid="cron-run-now"
             onClick={handleRun}
             disabled={running}
             title="Run Now"
@@ -380,6 +381,7 @@ export function CronJobDetailView() {
           </div>
           <button
             className={`toggle-button ${isActive ? 'active' : ''}`}
+            data-testid="cron-pause-toggle"
             onClick={handleToggle}
             aria-label={isActive ? 'Pause cron job' : 'Resume cron job'}
           >
@@ -959,6 +961,7 @@ export function CronJobDetailView() {
           {!showDeleteConfirm ? (
             <button
               className="btn btn-danger"
+              data-testid="cron-delete"
               onClick={() => setShowDeleteConfirm(true)}
             >
               Delete Cron Job

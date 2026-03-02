@@ -296,6 +296,7 @@ export function ServerSettingsView() {
               </button>
               <button
                 className="settings-button primary"
+                data-testid="server-settings-save"
                 onClick={handleSave}
                 disabled={saving}
               >

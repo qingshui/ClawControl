@@ -127,7 +127,7 @@ export function ChatArea() {
 
   if (messages.length === 0) {
     return (
-      <div className="chat-area">
+      <div className="chat-area" data-testid="chat-area">
         <div className="chat-empty">
           <div className="empty-logo">
             <img src={logoUrl} alt="ClawControl logo" />
@@ -151,7 +151,7 @@ export function ChatArea() {
   }
 
   return (
-    <div className="chat-area" ref={chatContainerRef}>
+    <div className="chat-area" data-testid="chat-area" ref={chatContainerRef}>
       <div className="chat-container">
         {messages.map((message, index) => {
           const isNewDay = index === 0 || !isSameDay(new Date(message.timestamp), new Date(messages[index - 1].timestamp))
@@ -361,7 +361,7 @@ const MessageBubble = memo(function MessageBubble({
   const time = format(new Date(message.timestamp), 'h:mm a')
 
   return (
-    <div className={`message ${isUser ? 'user' : 'agent'}`}>
+    <div className={`message ${isUser ? 'user' : 'agent'}`} data-testid={`message-${message.id}`}>
       {!isUser && (
         <div className="message-avatar">
           {agentAvatar ? (

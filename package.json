@@ -28,7 +28,10 @@
     "mobile:android": "npx vite build --config vite.config.mobile.ts && npx cap sync android && npx @capacitor/assets generate --android --splashBackgroundColor \"#06080a\" --iconBackgroundColor \"#06080a\" && node scripts/fix-android-edge-to-edge.js && npx cap open android",
     "mobile:dev": "npx vite --config vite.config.mobile.ts",
     "mobile:assets": "npx @capacitor/assets generate --android --ios --splashBackgroundColor '#06080a' --iconBackgroundColor '#06080a'",
-    "build:linux": "npx vite build && npx electron-builder --linux"
+    "build:linux": "npx vite build && npx electron-builder --linux",
+    "e2e": "npx playwright test --config e2e/playwright.config.ts",
+    "e2e:ui": "npx playwright test --config e2e/playwright.config.ts --ui",
+    "e2e:headed": "npx playwright test --config e2e/playwright.config.ts --headed"
   },
   "dependencies": {
     "@capacitor-community/speech-recognition": "^7.0.1",
@@ -60,6 +63,7 @@
     "@capacitor/cli": "^8.0.2",
     "@capacitor/ios": "^8.0.2",
     "@eslint/js": "^8.57.1",
+    "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.4.0",
     "@testing-library/react": "^14.2.0",
     "@types/dompurify": "^3.0.5",
