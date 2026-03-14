@@ -18,10 +18,26 @@ npm run mobile:ios     # Build, sync, and open in Xcode
 npm run mobile:android # Build, sync, and open in Android Studio
 
 # Testing & Quality
-npm run test         # Run tests in watch mode
-npm run test:run     # Run tests once
-npm run typecheck    # TypeScript type checking
-npm run lint         # ESLint
+npm run test              # Run tests in watch mode (Vitest)
+npm run test:run          # Run tests once
+npm run test:coverage     # Run tests with coverage
+npm run test:connection   # Test connection to OpenClaw server
+npm run e2e               # Run E2E tests (Playwright)
+npm run e2e:ui            # Run E2E tests with UI
+npm run e2e:headed        # Run E2E tests in headed browser
+npm run typecheck         # TypeScript type checking
+npm run lint              # ESLint
+
+# Run a single test file
+npx vitest src/lib/openclaw-client.test.ts
+npx playwright test e2e/tests/chat.spec.ts
+
+# Test file locations
+- Unit tests: `src/**/*.test.ts` (Vitest, JSDOM environment)
+- E2E tests: `e2e/tests/*.spec.ts` (Playwright, mock WebSocket server)
+- Test setup: `src/test/setup.ts`
+- E2E config: `e2e/playwright.config.ts`
+- E2E mock server: `e2e/mock-server/`
 ```
 
 ## Architecture
@@ -38,6 +54,33 @@ ClawControl is a cross-platform client for OpenClaw AI assistant. It runs as an 
 - **Capacitor Config** (`capacitor.config.ts`): Native app configuration
 - **Vite Config** (`vite.config.mobile.ts`): Web build without Electron plugins
 - **Native Projects**: `ios/` and `android/` directories (generated, gitignored)
+
+### Platform Abstraction Layer
+`src/lib/platform.ts` provides a unified API across all platforms:
+
+| Feature | Electron | Capacitor (iOS/Android) | Web |
+|---|---|---|---|
+| Token storage | safeStorage (encrypted) | Preferences plugin | localStorage |
+| External links | shell.openExternal | Browser plugin | window.open |
+| Notifications | Notification API | LocalNotifications | Notification API |
+| WebSocket factory | Browser WebSocket | NativeWebSocket (iOS) | Browser WebSocket |
+| Certificate trust | IPC trustHost | clearTLSFingerprint | N/A |
+| ClawHub install | ZIP download + extract | N/A | N/A |
+| Ed25519 crypto | Node.js crypto | Web Crypto API | Web Crypto API |
+| Haptic feedback | N/A | Haptics plugin | N/A |
+
+### Authentication Flow
+ClawControl uses **Ed25519 device identity pairing**:
+
+1. Client creates WebSocket connection to server URL
+2. Server sends `connect.challenge` event with nonce
+3. Client performs handshake:
+   - If device identity available: sign challenge and send with `deviceId`, `signature`, `publicKey`
+   - If no device identity: send with `token/password` and `mode` only
+4. Server responds with `hello-ok` (includes optional `deviceToken`)
+5. Client stores `deviceToken` for future reconnects
+6. If `NOT_PAIRED`: UI shows pairing instructions
+7. If `DEVICE_IDENTITY_STALE`: client clears keypair and retries once
 
 ### Core Data Flow
 1. **OpenClawClient** (`src/lib/openclaw/client.ts`): Custom WebSocket client implementing a frame-based JSON-RPC protocol (v3). Handles connection, authentication, and real-time message streaming with per-session stream isolation.
@@ -97,6 +140,57 @@ App
 ├── RightPanel       # Skills/Crons tabs
 └── Modals          # SettingsModal, CertErrorModal
 ```
+
+### Main View Routing
+The `mainView` state determines which component renders in the center:
+
+| `mainView` value | Component | Description |
+|---|---|---|
+| `chat` | ChatArea + InputArea | Default chat interface |
+| `skill-detail` | SkillDetailView | Individual skill inspector |
+| `cron-detail` | CronJobDetailView | Cron job editor |
+| `create-cron` | CreateCronJobView | New cron job form |
+| `agent-detail` | AgentDetailView | Agent profile editor |
+| `create-agent` | CreateAgentView | New agent form |
+| `clawhub-skill-detail` | ClawHubSkillDetailView | ClawHub skill browser |
+| `hook-detail` | HookDetailView | Hook configuration |
+| `server-settings` | ServerSettingsView | Full server config editor |
+| `usage` | UsageView | Usage statistics dashboard |
+| `nodes` | NodesView | Node/device management |
+| `pixel-dashboard` | AgentDashboard | Live agent activity grid |
+
+### Module-Level State
+Some state lives outside the Zustand store for performance or lifecycle reasons:
+
+| Variable | Purpose |
+|---|---|
+| `_subagentPollTimer` | Interval ID for subagent polling |
+| `_baselineSessionKeys` | Snapshot of session keys for subagent detection |
+| `_sessionLoadVersion` | Counter for detecting stale async message loads |
+| `_sessionMessagesCache` | `Map<string, Message[]>` for instant session switching |
+| `_clawHubStatsCache` | Cached download/star counts from ClawHub |
+
+### Event-Driven State Updates
+The store registers handlers for client events during `connect()`:
+
+| Client Event | Store Effect |
+|---|---|
+| `connected` | Set `connected=true`, clear pairing state |
+| `disconnected` | Set `connected=false`, clear streaming state |
+| `streamStart` | Mark session as streaming, start subagent polling |
+| `streamChunk` | Append text to streaming message (or create new one) |
+| `streamEnd` | Clear streaming state, notify if needed, stop polling |
+| `message` | Replace streaming placeholder with final message |
+| `toolCall` | Add/update tool call in session, finalize streaming message |
+| `thinkingChunk` | Accumulate thinking text for session |
+| `compaction` | Set/clear compacting indicator |
+| `streamSessionKey` | Migrate session key when server assigns different key |
+| `subagentDetected` | Add to activeSubagents list |
+| `pairingRequired` | Show pairing UI |
+| `certError` | Show certificate error modal |
+| `reconnectExhausted` | Set disconnected, stop connecting |
+| `execApprovalRequested` | Show notification |
+| `agentStatus` | Update agent online/offline status |
 
 ### Server Settings View
 The `ServerSettingsView` component (`src/components/ServerSettingsView.tsx`) provides a full-page editor for OpenClaw server configuration. It uses `config.get` to load the full config and `config.patch` to save changes.

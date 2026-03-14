@@ -16,6 +16,15 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true
   },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true
+  },
+  server: {
+    host: process.env.VITE_HOST || '0.0.0.0',
+    port: parseInt(process.env.VITE_PORT || '5173'),
+    strictPort: true
+  },
   test: {
     globals: true,
     environment: 'jsdom',
