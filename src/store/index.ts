@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { OpenClawClient, Message, Session, Agent, Skill, CronJob, Hook, HooksConfig, AgentFile, CreateAgentParams, buildIdentityContent, stripBase64FromStreaming } from '../lib/openclaw'
+import { OpenClawClient, Message, Session, Agent, Skill, CronJob, Hook, HooksConfig, AgentFile, CreateAgentParams, buildIdentityContent, stripBase64FromStreaming, generateUUID } from '../lib/openclaw'
 import { NodeClient } from '../lib/node'
 import { getDefaultPermissions } from '../lib/node/command-catalog'
 import { getCommands } from '../lib/node/capability-registry'
@@ -477,7 +477,7 @@ export const useStore = create<AppState>()(
       serverProfiles: [],
       activeProfileId: null,
       addServerProfile: (profileData) => {
-        const id = crypto.randomUUID()
+        const id = generateUUID()
         const profile: ServerProfile = { id, ...profileData }
         set((state) => ({
           serverProfiles: [...state.serverProfiles, profile]
@@ -1778,7 +1778,7 @@ export const useStore = create<AppState>()(
         // Migration: create a default server profile from legacy single-server state
         const { serverProfiles, serverUrl: legacyUrl, gatewayToken: currentToken, authMode: currentMode, deviceName: currentName, pinnedSessionKeys, collapsedSessionGroups } = get()
         if (serverProfiles.length === 0 && legacyUrl) {
-          const id = crypto.randomUUID()
+          const id = generateUUID()
           const profile: ServerProfile = {
             id,
             name: 'Server 1',
@@ -1831,7 +1831,7 @@ export const useStore = create<AppState>()(
 
         // Prevent concurrent connect() calls (React StrictMode fires effects twice)
         if (connecting) {
-          return
+          throw new Error('Connection already in progress')
         }
 
         // Show settings if URL is not configured
