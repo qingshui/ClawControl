@@ -452,3 +452,19 @@ export function resolveAvatarUrl(avatar: string | undefined, agentId: string, ws
   // Invalid avatar (like single character from parsing error)
   return undefined
 }
+
+/**
+ * Generate a UUID v4 string.
+ * Uses crypto.randomUUID() when available, falls back to a simple implementation for older browsers.
+ */
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  // Fallback for browsers without crypto.randomUUID (e.g., non-HTTPS contexts)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}

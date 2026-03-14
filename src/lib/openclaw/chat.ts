@@ -1,7 +1,7 @@
 // OpenClaw Client - Chat API Methods
 
 import type { Message, RpcCaller } from './types'
-import { stripAnsi, stripSystemNotifications, stripConversationMetadata, extractImagesFromContent, parseMediaTokens } from './utils'
+import { stripAnsi, stripSystemNotifications, stripConversationMetadata, extractImagesFromContent, parseMediaTokens, generateUUID } from './utils'
 
 export interface HistoryToolCall {
   toolCallId: string
@@ -305,7 +305,7 @@ export async function sendMessage(call: RpcCaller, params: {
   thinking?: boolean
   attachments?: ChatAttachmentInput[]
 }): Promise<{ sessionKey?: string }> {
-  const idempotencyKey = crypto.randomUUID()
+  const idempotencyKey = generateUUID()
   const payload: Record<string, unknown> = {
     message: params.content,
     idempotencyKey

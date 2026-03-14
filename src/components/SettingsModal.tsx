@@ -231,7 +231,7 @@ export function SettingsModal() {
       setShowSettings(false)
       return
     } catch (err) {
-      // First attempt failed — retry once
+      // First attempt failed — store error and retry once
       setError(err instanceof Error ? err.message : 'Connection failed')
     }
 
